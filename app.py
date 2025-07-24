@@ -1,148 +1,133 @@
 import streamlit as st
 import pandas as pd
-import requests
 import time
-import io
-from datetime import datetime
+import requests
+import re
 
-st.set_page_config(
-    page_title="Envio de Transações CAF",
-    page_icon="🚀",
-    layout="centered"
-)
+st.set_page_config(page_title="Envio de Transações CAF", layout="centered")
 
-st.title("Envio de Transações em Lote para a CAF")
+st.markdown("""
+<style>
+    .main {
+        background-color: #0f0f0f;
+        color: white;
+    }
+    h1, h2, h3 {
+        color: #00ffd4;
+    }
+    .css-1v3fvcr {
+        background-color: #0f0f0f;
+    }
+    .stButton>button {
+        background-color: #00ffd4;
+        color: black;
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-with st.expander("ℹ️ Instruções"):
-    st.markdown("""
-    - **Monte sua planilha** conforme os campos que deseja utilizar.
-    - **Nomes das colunas obrigatoriamente devem ser**:
-        - `CPF`, `NOME`, `DATA_NASC`, `NOME_MAE`, `CEP`, `EMAIL`, `TEL`, `PLACA`, `SELFIE`, `FRENTE_DOC`, `VERSO_DOC`
-    - Campos com links de imagem (selfie/docs) devem ser URLs acessíveis publicamente.
-    """)
+st.title("📤 Envio de Transações para a CAF")
 
-# Seleção de campos para a planilha
-st.subheader("1. Selecione os campos que serão usados na planilha")
-campos_disponiveis = [
-    "CPF", "NOME", "DATA_NASC", "NOME_MAE", "CEP", "EMAIL", "TEL", "PLACA",
-    "SELFIE", "FRENTE_DOC", "VERSO_DOC"
-]
-campos_selecionados = []
-st.markdown("**Campos Disponíveis:**")
-col1, col2, col3 = st.columns(3)
-for i, campo in enumerate(campos_disponiveis):
-    if i % 3 == 0:
-        if col1.checkbox(campo): campos_selecionados.append(campo)
-    elif i % 3 == 1:
-        if col2.checkbox(campo): campos_selecionados.append(campo)
-    else:
-        if col3.checkbox(campo): campos_selecionados.append(campo)
+st.subheader("1️⃣ Selecione os campos que estarão na planilha:")
+campos = {
+    "CPF": st.checkbox("CPF", value=True),
+    "NOME": st.checkbox("NOME"),
+    "DATA_NASC": st.checkbox("DATA_NASC"),
+    "NOME_MAE": st.checkbox("NOME_MAE"),
+    "CEP": st.checkbox("CEP"),
+    "EMAIL": st.checkbox("EMAIL"),
+    "TEL": st.checkbox("TEL"),
+    "PLACA": st.checkbox("PLACA"),
+    "SELFIE": st.checkbox("SELFIE"),
+    "FRENTE_DOC": st.checkbox("FRENTE_DOC"),
+    "VERSO_DOC": st.checkbox("VERSO_DOC"),
+}
 
-if campos_selecionados:
-    st.markdown("**Exemplo de estrutura esperada da planilha:**")
-    exemplo_df = pd.DataFrame(columns=campos_selecionados)
-    st.dataframe(exemplo_df.head(1), use_container_width=True)
+st.subheader("📄 Exemplo da planilha esperada:")
+colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
+st.code("\t".join(colunas_selecionadas), language="text")
 
-# Upload da planilha
-st.subheader("2. Faça o upload da planilha preenchida")
-arquivo = st.file_uploader("Envie sua planilha Excel (.xlsx)", type=["xlsx"])
+st.subheader("2️⃣ Informações da Requisição")
+auth_token = st.text_input("Authorization (coloque o token completo):")
+template_id = st.text_input("ID do Modelo (templateId):")
 
-# Parâmetros da requisição
-st.subheader("3. Parâmetros da Transação")
-auth_token = st.text_input("Authorization (ex: Bearer xxxxxx...)", type="password")
-template_id = st.text_input("ID do Template")
-modo_envio = st.radio("Frequência de envio", ["Por segundo", "Por minuto"], horizontal=True)
-qtd_envios = st.number_input("Quantidade de requisições por unidade de tempo selecionada", min_value=1, step=1, value=1)
+col1, col2 = st.columns(2)
+with col1:
+    frequencia = st.number_input("Quantidade de requisições", min_value=1, value=2)
+with col2:
+    unidade_tempo = st.selectbox("Por...", options=["segundo", "minuto"])
 
-# Botões de controle
-if 'interromper' not in st.session_state:
-    st.session_state.interromper = False
-if 'enviando' not in st.session_state:
-    st.session_state.enviando = False
+intervalo = 1 / frequencia if unidade_tempo == "segundo" else 60 / frequencia
 
-# Processamento
-erros = []
-resumo_final = []
+st.subheader("3️⃣ Upload da planilha")
+arquivo = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"])
 
-def tratar_cpf(cpf):
-    if pd.isna(cpf): return ""
-    cpf = ''.join(filter(str.isdigit, str(cpf)))
-    return cpf.zfill(11)
+interromperamento = st.empty()
+interromper = False
 
-def enviar_transacoes():
+def reset_interromper():
+    global interromper
+    interromper = False
+
+if arquivo and auth_token and template_id:
     df = pd.read_excel(arquivo)
     total = len(df)
-    delay = 60/qtd_envios if modo_envio == "Por minuto" else 1/qtd_envios
+    progresso = st.progress(0, text="Aguardando início...")
+    log_area = st.empty()
 
-    st.session_state.enviando = True
-    barra = st.progress(0)
+    if interromperamento.button("🛑 Interromper Envio"):
+        interromper = True
 
-    for i, row in df.iterrows():
-        if st.session_state.interromper:
-            st.warning("Envio interrompido pelo usuário.")
-            break
+    if st.button("🚀 Enviar Transações"):
+        reset_interromper()
+        for i, linha in df.iterrows():
+            if interromper:
+                st.warning("Envio interrompido pelo usuário.")
+                break
 
-        payload = {
-            "templateId": template_id,
-            "attributes": {},
-            "files": [],
-            "metadata": {"linha_excel": i+2}
-        }
+            payload = {"templateId": template_id, "attributes": {}, "files": []}
 
-        for campo in campos_selecionados:
-            valor = str(row[campo]) if campo in row and pd.notna(row[campo]) else None
-            if campo == "CPF":
-                payload["attributes"]["cpf"] = tratar_cpf(valor)
-            elif campo == "NOME":
-                payload["attributes"]["name"] = valor
-            elif campo == "DATA_NASC":
-                payload["attributes"]["birthDate"] = valor
-            elif campo == "NOME_MAE":
-                payload["attributes"]["motherName"] = valor
-            elif campo == "CEP":
-                payload["attributes"]["cep"] = valor
-            elif campo == "EMAIL":
-                payload["attributes"]["email"] = valor
-            elif campo == "TEL":
-                payload["attributes"]["phoneNumber"] = valor
-            elif campo == "PLACA":
-                payload["attributes"]["plate"] = valor
-            elif campo == "SELFIE" and valor:
-                payload["files"].append({"data": valor, "type": "SELFIE"})
-            elif campo in ["FRENTE_DOC", "VERSO_DOC"] and valor:
-                payload["files"].append({"data": valor, "type": "OTHERS"})
+            for campo in campos:
+                if campo in linha and not pd.isna(linha[campo]):
+                    valor = str(linha[campo]).strip()
+                    if campo == "CPF":
+                        valor = re.sub(r"\D", "", valor).zfill(11)
+                        payload["attributes"]["cpf"] = valor
+                    elif campo == "NOME":
+                        payload["attributes"]["name"] = valor
+                    elif campo == "DATA_NASC":
+                        payload["attributes"]["birthDate"] = valor
+                    elif campo == "NOME_MAE":
+                        payload["attributes"]["motherName"] = valor
+                    elif campo == "CEP":
+                        payload["attributes"]["cep"] = valor
+                    elif campo == "EMAIL":
+                        payload["attributes"]["email"] = valor
+                    elif campo == "TEL":
+                        payload["attributes"]["phoneNumber"] = valor
+                    elif campo == "PLACA":
+                        payload["attributes"]["plate"] = valor
+                    elif campo == "SELFIE":
+                        payload["files"].append({"data": valor, "type": "SELFIE"})
+                    elif campo in ["FRENTE_DOC", "VERSO_DOC"]:
+                        payload["files"].append({"data": valor, "type": "OTHERS"})
 
-        try:
-            resp = requests.post(
-                url="https://api.combateafraude.com/v1/transactions?origin=TRUST",
-                headers={"Authorization": auth_token, "Content-Type": "application/json"},
-                json=payload
-            )
-            resultado = resp.json()
-            resumo_final.append({"CPF": payload["attributes"].get("cpf", ""), "status_code": resp.status_code, "response": resultado})
-        except Exception as e:
-            resumo_final.append({"CPF": payload["attributes"].get("cpf", ""), "status_code": "erro", "response": str(e)})
+            try:
+                response = requests.post(
+                    url="https://api.combateafraude.com/v1/transactions?origin=TRUST",
+                    headers={
+                        "Authorization": auth_token,
+                        "Content-Type": "application/json"
+                    },
+                    json=payload
+                )
+                log_area.text(f"{i+1}/{total} → Status: {response.status_code} | CPF: {payload['attributes'].get('cpf', '')}")
+            except Exception as e:
+                log_area.text(f"{i+1}/{total} → Erro: {str(e)}")
 
-        barra.progress((i+1)/total)
-        time.sleep(delay)
+            progresso.progress((i+1)/total, text=f"{i+1} de {total} enviados")
+            time.sleep(intervalo)
 
-    st.success("Processo finalizado.")
-    st.session_state.enviando = False
-    st.session_state.interromper = False
-
-    df_resumo = pd.DataFrame(resumo_final)
-    st.download_button(
-        label="📂 Baixar Relatório Final",
-        data=io.BytesIO(df_resumo.to_excel(index=False, engine='openpyxl')),
-        file_name=f"resumo_envio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-# Botão de envio
-if st.button("🚀 Enviar Transações") and arquivo:
-    enviar_transacoes()
-
-# Botão de interromper envio (só aparece durante o envio)
-if st.session_state.get("enviando"):
-    if st.button("🛑 Interromper Envio"):
-        st.session_state.interromper = True
+        st.success("✅ Processamento concluído.")

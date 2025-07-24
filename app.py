@@ -84,7 +84,7 @@ if arquivo and auth_token and template_id:
 
         for i, linha in df.iterrows():
             if show_stop:
-                if interromper_btn.button("🛑 Interromper Envio"):
+                if interromper_btn.button("🛑 Interromper Envio", key="btn_stop"):
                     interromper = True
                     show_stop = False
 

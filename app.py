@@ -54,23 +54,30 @@ import streamlit.components.v1 as components
 
 components.html("""
 <div style='position: relative;'>
-  <input id='authToken' type='password' placeholder='Authorization (coloque o token completo)' 
+  <input id='authInput' type='password' placeholder='Authorization (coloque o token completo)' 
          style='width: 100%; padding: 10px 40px 10px 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px;'
-         oninput="window.parent.postMessage({type: 'authToken', value: this.value}, '*')">
-  <span onclick="toggleVisibility()" 
+         oninput='window.parent.postMessage({type: "authToken", value: this.value}, "*")'>
+  <span onclick='toggleAuthVisibility()' 
         style='position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: gray;'>
     👁️
   </span>
 </div>
 <script>
-  function toggleVisibility() {
-    const input = document.getElementById('authToken');
+  function toggleAuthVisibility() {
+    const input = document.getElementById('authInput');
     input.type = input.type === 'password' ? 'text' : 'password';
   }
+
+  window.addEventListener("message", (event) => {
+    if (event.data.type === "getAuthToken") {
+      const token = document.getElementById("authInput").value;
+      window.parent.postMessage({type: "authToken", value: token}, "*");
+    }
+  });
 </script>
 """, height=70)
 
-auth_token = st.experimental_get_query_params().get("auth_token", [""])[0]
+auth_token = st.session_state.get("auth_token", "")
 template_id = st.text_input("ID do Modelo (templateId):")
 
 col1, col2 = st.columns(2)

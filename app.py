@@ -50,8 +50,37 @@ colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
 st.code("\t".join(colunas_selecionadas), language="text")
 
 st.subheader("2️⃣ Informações da Requisição")
-mostrar = st.checkbox("Mostrar token")
-auth_token = st.text_input("Authorization (coloque o token completo):", type="default" if mostrar else "password")
+st.markdown("""
+<div style='position: relative;'>
+  <input id='authInput' type='password' placeholder='Authorization (coloque o token completo)' 
+         style='width: 100%; padding: 10px 40px 10px 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px;'
+         oninput='window.authToken = this.value'>
+  <span onclick='toggleAuthVisibility()' 
+        style='position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: gray;'>
+    👁️
+  </span>
+</div>
+<script>
+  function toggleAuthVisibility() {
+    const input = document.getElementById('authInput');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  const authInput = document.getElementById('authInput');
+  const observer = new MutationObserver(() => {
+    if (window.authToken !== undefined) {
+      const streamlitInput = window.parent.document.querySelector('[data-testid="stTextInput"] input');
+      if (streamlitInput) {
+        streamlitInput.value = window.authToken;
+        streamlitInput.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+    }
+  });
+  observer.observe(document.getElementById('authInput'), { attributes: true, childList: true, subtree: true });
+</script>
+""", unsafe_allow_html=True)
+
+auth_token = st.text_input(" ", type="password", key="auth_token")
 template_id = st.text_input("ID do Modelo (templateId):")
 
 col1, col2 = st.columns(2)

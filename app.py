@@ -53,17 +53,22 @@ st.subheader("2️⃣ Informações da Requisição")
 import streamlit.components.v1 as components
 
 components.html("""
-<div style='position: relative;'>
+<div style='position: relative; margin-bottom: 1rem;'>
   <input id='authInput' type='password' placeholder='Authorization (coloque o token completo)' 
-         style='width: 100%; padding: 10px 40px 10px 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px;'
-         oninput='window.parent.postMessage({type: "authToken", value: this.value}, "*")'>
-  <span onclick='toggleAuthVisibility()' 
-        style='position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: gray;'>
-    👁️
+         style='width: 100%; padding: 10px 40px 10px 10px; border-radius: 8px;
+                border: 1px solid #444; font-size: 16px; background-color: #1c1c1c;
+                color: #f1f1f1; box-sizing: border-box;'>
+  <span onclick='toggleVisibility()' 
+        style='position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+               cursor: pointer;'>
+    <svg xmlns='http://www.w3.org/2000/svg' fill='gray' height='20' viewBox='0 0 24 24' width='20'>
+      <path d='M0 0h24v24H0z' fill='none'/>
+      <path d='M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 13c-3.04 0-5.5-2.46-5.5-5.5S8.96 6.5 12 6.5 17.5 8.96 17.5 12 15.04 17.5 12 17.5zm0-9A3.5 3.5 0 1 0 15.5 12 3.5 3.5 0 0 0 12 8.5z'/>
+    </svg>
   </span>
 </div>
 <script>
-  function toggleAuthVisibility() {
+  function toggleVisibility() {
     const input = document.getElementById('authInput');
     input.type = input.type === 'password' ? 'text' : 'password';
   }
@@ -75,7 +80,7 @@ components.html("""
     }
   });
 </script>
-""", height=70)
+""", height=80)
 
 auth_token = st.session_state.get("auth_token", "")
 template_id = st.text_input("ID do Modelo (templateId):")

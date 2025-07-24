@@ -1,136 +1,148 @@
-# app.py
 import streamlit as st
 import pandas as pd
-import time
 import requests
-import base64
-from io import BytesIO
-import threading
+import time
+import io
+from datetime import datetime
 
-st.set_page_config(page_title="Envio de Transações CAF", layout="wide")
+st.set_page_config(
+    page_title="Envio de Transações CAF",
+    page_icon="🚀",
+    layout="centered"
+)
 
-st.title("🚀 Envio de Transações CAF")
+st.title("Envio de Transações em Lote para a CAF")
 
-# Campos disponíveis
+with st.expander("ℹ️ Instruções"):
+    st.markdown("""
+    - **Monte sua planilha** conforme os campos que deseja utilizar.
+    - **Nomes das colunas obrigatoriamente devem ser**:
+        - `CPF`, `NOME`, `DATA_NASC`, `NOME_MAE`, `CEP`, `EMAIL`, `TEL`, `PLACA`, `SELFIE`, `FRENTE_DOC`, `VERSO_DOC`
+    - Campos com links de imagem (selfie/docs) devem ser URLs acessíveis publicamente.
+    """)
+
+# Seleção de campos para a planilha
+st.subheader("1. Selecione os campos que serão usados na planilha")
 campos_disponiveis = [
-    "CPF", "NOME", "DATA_NASC", "NOME_MAE",
-    "CEP", "EMAIL", "TEL", "PLACA",
+    "CPF", "NOME", "DATA_NASC", "NOME_MAE", "CEP", "EMAIL", "TEL", "PLACA",
     "SELFIE", "FRENTE_DOC", "VERSO_DOC"
 ]
-
-# Seleção dos campos da planilha
-st.subheader("✅ Selecione os campos que estarão na sua planilha")
 campos_selecionados = []
-cols = st.columns(4)
-for idx, campo in enumerate(campos_disponiveis):
-    if cols[idx % 4].checkbox(campo, key=f"col_{campo}"):
-        campos_selecionados.append(campo)
+st.markdown("**Campos Disponíveis:**")
+col1, col2, col3 = st.columns(3)
+for i, campo in enumerate(campos_disponiveis):
+    if i % 3 == 0:
+        if col1.checkbox(campo): campos_selecionados.append(campo)
+    elif i % 3 == 1:
+        if col2.checkbox(campo): campos_selecionados.append(campo)
+    else:
+        if col3.checkbox(campo): campos_selecionados.append(campo)
 
-# Exemplo da planilha esperada
 if campos_selecionados:
-    st.subheader("📄 Exemplo de estrutura esperada da planilha")
-    exemplo = pd.DataFrame([["exemplo"] * len(campos_selecionados)], columns=campos_selecionados)
-    st.dataframe(exemplo, use_container_width=True, hide_index=True)
+    st.markdown("**Exemplo de estrutura esperada da planilha:**")
+    exemplo_df = pd.DataFrame(columns=campos_selecionados)
+    st.dataframe(exemplo_df.head(1), use_container_width=True)
 
 # Upload da planilha
-st.subheader("📁 Envie um arquivo Excel (.xlsx)")
-arquivo = st.file_uploader("Drag and drop file here", type=["xlsx"], label_visibility="collapsed")
+st.subheader("2. Faça o upload da planilha preenchida")
+arquivo = st.file_uploader("Envie sua planilha Excel (.xlsx)", type=["xlsx"])
 
-# Inputs de configuração
-st.subheader("🔐 Configurações da Requisição")
-authorization = st.text_input("Authorization (cole o token completo)", type="password")
-template_id = st.text_input("ID do modelo de consulta (templateId)")
+# Parâmetros da requisição
+st.subheader("3. Parâmetros da Transação")
+auth_token = st.text_input("Authorization (ex: Bearer xxxxxx...)", type="password")
+template_id = st.text_input("ID do Template")
+modo_envio = st.radio("Frequência de envio", ["Por segundo", "Por minuto"], horizontal=True)
+qtd_envios = st.number_input("Quantidade de requisições por unidade de tempo selecionada", min_value=1, step=1, value=1)
 
-# Configuração de velocidade
-st.subheader("⚙️ Frequência de requisições")
-col1, col2 = st.columns([1, 2])
-qtd = col1.number_input("Quantidade", min_value=1, value=1, step=1)
-modo = col2.selectbox("Intervalo", options=["por segundo", "por minuto"])
-intervalo = 60 / qtd if modo == "por minuto" else 1 / qtd
+# Botões de controle
+if 'interromper' not in st.session_state:
+    st.session_state.interromper = False
+if 'enviando' not in st.session_state:
+    st.session_state.enviando = False
 
-# Controle de interrupção
-stop_event = threading.Event()
+# Processamento
+erros = []
+resumo_final = []
 
-def interromper_envio():
-    stop_event.set()
+def tratar_cpf(cpf):
+    if pd.isna(cpf): return ""
+    cpf = ''.join(filter(str.isdigit, str(cpf)))
+    return cpf.zfill(11)
+
+def enviar_transacoes():
+    df = pd.read_excel(arquivo)
+    total = len(df)
+    delay = 60/qtd_envios if modo_envio == "Por minuto" else 1/qtd_envios
+
+    st.session_state.enviando = True
+    barra = st.progress(0)
+
+    for i, row in df.iterrows():
+        if st.session_state.interromper:
+            st.warning("Envio interrompido pelo usuário.")
+            break
+
+        payload = {
+            "templateId": template_id,
+            "attributes": {},
+            "files": [],
+            "metadata": {"linha_excel": i+2}
+        }
+
+        for campo in campos_selecionados:
+            valor = str(row[campo]) if campo in row and pd.notna(row[campo]) else None
+            if campo == "CPF":
+                payload["attributes"]["cpf"] = tratar_cpf(valor)
+            elif campo == "NOME":
+                payload["attributes"]["name"] = valor
+            elif campo == "DATA_NASC":
+                payload["attributes"]["birthDate"] = valor
+            elif campo == "NOME_MAE":
+                payload["attributes"]["motherName"] = valor
+            elif campo == "CEP":
+                payload["attributes"]["cep"] = valor
+            elif campo == "EMAIL":
+                payload["attributes"]["email"] = valor
+            elif campo == "TEL":
+                payload["attributes"]["phoneNumber"] = valor
+            elif campo == "PLACA":
+                payload["attributes"]["plate"] = valor
+            elif campo == "SELFIE" and valor:
+                payload["files"].append({"data": valor, "type": "SELFIE"})
+            elif campo in ["FRENTE_DOC", "VERSO_DOC"] and valor:
+                payload["files"].append({"data": valor, "type": "OTHERS"})
+
+        try:
+            resp = requests.post(
+                url="https://api.combateafraude.com/v1/transactions?origin=TRUST",
+                headers={"Authorization": auth_token, "Content-Type": "application/json"},
+                json=payload
+            )
+            resultado = resp.json()
+            resumo_final.append({"CPF": payload["attributes"].get("cpf", ""), "status_code": resp.status_code, "response": resultado})
+        except Exception as e:
+            resumo_final.append({"CPF": payload["attributes"].get("cpf", ""), "status_code": "erro", "response": str(e)})
+
+        barra.progress((i+1)/total)
+        time.sleep(delay)
+
+    st.success("Processo finalizado.")
+    st.session_state.enviando = False
+    st.session_state.interromper = False
+
+    df_resumo = pd.DataFrame(resumo_final)
+    st.download_button(
+        label="📂 Baixar Relatório Final",
+        data=io.BytesIO(df_resumo.to_excel(index=False, engine='openpyxl')),
+        file_name=f"resumo_envio_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 # Botão de envio
-if st.button("📝 Enviar Transações"):
-    if not arquivo:
-        st.error("Envie um arquivo Excel.")
-    elif not authorization or not template_id:
-        st.error("Preencha o Authorization e o templateId.")
-    elif not campos_selecionados:
-        st.error("Selecione ao menos um campo.")
-    else:
-        df = pd.read_excel(arquivo)
-        total = len(df)
-        progresso = st.progress(0)
-        status_area = st.empty()
-        btn_stop = st.empty()
-        resultados = []
+if st.button("🚀 Enviar Transações") and arquivo:
+    enviar_transacoes()
 
-        # Mostra botão de interrupção
-        if btn_stop.button("🔴 Interromper Envio", key="btn_stop_envio"):
-            interromper_envio()
-
-        for i, row in df.iterrows():
-            if stop_event.is_set():
-                status_area.warning("Envio interrompido pelo usuário.")
-                break
-
-            payload = {"templateId": template_id, "attributes": {}, "files": []}
-            for campo in campos_selecionados:
-                valor = row.get(campo)
-                if pd.isna(valor): continue
-
-                if campo == "CPF":
-                    cpf = ''.join(filter(str.isdigit, str(valor)))
-                    cpf = cpf.zfill(11)
-                    payload["attributes"]["cpf"] = cpf
-                elif campo in ["SELFIE", "FRENTE_DOC", "VERSO_DOC"]:
-                    tipo = "SELFIE" if campo == "SELFIE" else "OTHERS"
-                    payload["files"].append({"data": str(valor), "type": tipo})
-                else:
-                    key_attr = {
-                        "NOME": "name",
-                        "DATA_NASC": "birthDate",
-                        "NOME_MAE": "motherName",
-                        "CEP": "cep",
-                        "EMAIL": "email",
-                        "TEL": "phoneNumber",
-                        "PLACA": "plate"
-                    }.get(campo, campo.lower())
-                    payload["attributes"][key_attr] = str(valor)
-
-            response = requests.post(
-                "https://api.combateafraude.com/v1/transactions?origin=TRUST",
-                json=payload,
-                headers={"Authorization": authorization, "Content-Type": "application/json"}
-            )
-
-            resultado = {
-                "cpf": payload["attributes"].get("cpf", ""),
-                "status_code": response.status_code,
-                "resumo": "OK" if response.ok else response.text
-            }
-            resultados.append(resultado)
-
-            progresso.progress((i + 1) / total)
-            status_area.info(f"{i+1}/{total} → CPF: {resultado['cpf']} → {resultado['status_code']} | {resultado['resumo']}")
-            time.sleep(intervalo)
-
-        if not stop_event.is_set():
-            status_area.success("✅ Envio concluído!")
-
-        # Gerar relatório final
-        relatorio = pd.DataFrame(resultados)
-        buffer = BytesIO()
-        relatorio.to_excel(buffer, index=False)
-        buffer.seek(0)
-        st.download_button(
-            label="📥 Baixar relatório final (.xlsx)",
-            data=buffer,
-            file_name="relatorio_transacoes.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+# Botão de interromper envio (só aparece durante o envio)
+if st.session_state.get("enviando"):
+    if st.button("🛑 Interromper Envio"):
+        st.session_state.interromper = True

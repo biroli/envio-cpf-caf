@@ -50,24 +50,8 @@ colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
 st.code("\t".join(colunas_selecionadas), language="text")
 
 st.subheader("2️⃣ Informações da Requisição")
-auth_token_html = """
-<div style='position: relative;'>
-  <input id='authInput' type='password' placeholder='Authorization (coloque o token completo)' 
-         style='width: 100%; padding: 10px 40px 10px 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px;'>
-  <span onclick='toggleAuthVisibility()' 
-        style='position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: gray;'>
-    👁️
-  </span>
-</div>
-<script>
-  function toggleAuthVisibility() {
-    const input = document.getElementById('authInput');
-    input.type = input.type === 'password' ? 'text' : 'password';
-  }
-</script>
-"""
-st.markdown(auth_token_html, unsafe_allow_html=True)
-auth_token = st.text_input("Cole aqui novamente o token (será removido após submit):", type="password", key="hidden_token")
+mostrar = st.checkbox("Mostrar token")
+auth_token = st.text_input("Authorization (coloque o token completo):", type="default" if mostrar else "password")
 template_id = st.text_input("ID do Modelo (templateId):")
 
 col1, col2 = st.columns(2)

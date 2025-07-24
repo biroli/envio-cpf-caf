@@ -3,84 +3,89 @@ import streamlit as st
 import pandas as pd
 import requests
 import time
-import re
 
-st.set_page_config(page_title="Envio de CPFs para a CAF", layout="centered")
+st.set_page_config(page_title="Envio de Transações CAF", layout="centered")
 
-st.title("📤 Envio de CPFs para a API da CAF")
-st.markdown("Envie uma planilha com os CPFs (sem título) na coluna **A**. O script irá normalizar os CPFs, realizar as requisições e exibir os resultados.")
+st.title("📤 Envio de Transações para a CAF")
 
-uploaded_file = st.file_uploader("📄 Envie a planilha (.xlsx ou .csv)", type=["xlsx", "csv"])
-auth_token = st.text_input("🔐 Authorization (Bearer token)")
-template_id = st.text_input("📌 ID do modelo de consulta (templateId)")
-rps = st.number_input("🚀 Requisições por segundo (RPS)", min_value=0.1, max_value=10.0, value=2.0, step=0.1)
+st.markdown("### 1️⃣ Selecione os campos que estarão presentes na sua planilha:")
 
-def normaliza_cpf(cpf):
-    if pd.isna(cpf):
-        return ""
-    return re.sub(r"\D", "", str(cpf)).zfill(11)
+campos_disponiveis = {
+    "cpf": "CPF",
+    "name": "Nome completo",
+    "birthDate": "Data de nascimento",
+    "motherName": "Nome da mãe",
+    "cep": "CEP",
+    "email": "Email",
+    "phoneNumber": "Telefone",
+    "plate": "Placa do carro",
+    "selfie": "URL da selfie",
+    "doc_front": "URL frente do documento",
+    "doc_back": "URL verso do documento"
+}
 
-if st.button("🚀 Iniciar envio"):
-    if uploaded_file and auth_token and template_id:
-        try:
-            if uploaded_file.name.endswith(".csv"):
-                df = pd.read_csv(uploaded_file, header=None)
-            else:
-                df = pd.read_excel(uploaded_file, header=None)
-        except Exception as e:
-            st.error(f"Erro ao ler o arquivo: {e}")
-            st.stop()
+colunas_selecionadas = st.multiselect("Campos incluídos na planilha", options=list(campos_disponiveis.keys()),
+                                      format_func=lambda x: campos_disponiveis[x])
 
-        cpfs = df.iloc[:, 0].dropna().apply(normaliza_cpf).tolist()
-        total = len(cpfs)
-        delay = 1 / rps
-        resultados = []
+if colunas_selecionadas:
+    st.markdown("### 🧾 Exemplo da planilha esperada:")
+    df_exemplo = pd.DataFrame({campos_disponiveis[c]: [f"exemplo_{i+1}"] for i, c in enumerate(colunas_selecionadas)})
+    st.dataframe(df_exemplo)
 
-        st.info(f"📦 {total} CPFs detectados. Enviando {rps:.1f} requisições por segundo...")
+    st.markdown("### 2️⃣ Envie a planilha com os dados reais:")
+    arquivo = st.file_uploader("Escolha o arquivo Excel (.xlsx)", type=["xlsx"])
 
-        progress_bar = st.progress(0)
-        log_area = st.empty()
+    if arquivo:
+        df = pd.read_excel(arquivo)
+        st.success("Planilha carregada com sucesso!")
 
-        for i, cpf in enumerate(cpfs):
-            payload = {
-                "templateId": template_id,
-                "attributes": {
-                    "cpf": cpf
+        st.markdown("### 3️⃣ Preencha as informações da requisição:")
+        authorization = st.text_input("Authorization (Bearer token)", type="password")
+        template_id = st.text_input("ID do modelo de consulta (templateId)")
+        rps = st.number_input("Requisições por segundo", min_value=1, max_value=10, value=1)
+
+        if st.button("🚀 Enviar transações"):
+            total = len(df)
+            progresso = st.progress(0)
+            resultados = []
+
+            for idx, row in df.iterrows():
+                payload = {
+                    "templateId": template_id,
+                    "attributes": {},
+                    "files": []
                 }
-            }
 
-            try:
-                response = requests.post(
-                    "https://api.combateafraude.com/v1/transactions?origin=TRUST",
-                    headers={
-                        "Authorization": auth_token,
-                        "Content-Type": "application/json"
-                    },
-                    json=payload
-                )
-                status = response.status_code
-                text = response.text
-            except Exception as e:
-                status = "ERROR"
-                text = str(e)
+                for campo in colunas_selecionadas:
+                    valor = row.get(campos_disponiveis[campo], None)
+                    if pd.isna(valor):
+                        continue
+                    if campo in ["selfie", "doc_front", "doc_back"]:
+                        tipo = "SELFIE" if campo == "selfie" else "OTHERS"
+                        payload["files"].append({"data": valor, "type": tipo})
+                    else:
+                        if campo == "cpf":
+                            valor = str(valor).zfill(11).replace(".", "").replace("-", "").replace(" ", "")
+                        payload["attributes"][campo] = valor
 
-            resultados.append({
-                "cpf": cpf,
-                "status": status,
-                "resposta": text
-            })
+                headers = {
+                    "Authorization": f"Bearer {authorization}",
+                    "Content-Type": "application/json"
+                }
 
-            log_area.text(f"[{i+1}/{total}] CPF: {cpf} | Status: {status}")
-            progress_bar.progress((i+1) / total)
-            time.sleep(delay)
+                try:
+                    response = requests.post(
+                        "https://api.combateafraude.com/v1/transactions?origin=TRUST",
+                        headers=headers,
+                        json=payload
+                    )
+                    resultados.append(f"Linha {idx + 1}: {response.status_code} - {response.text[:100]}")
+                except Exception as e:
+                    resultados.append(f"Linha {idx + 1}: ERRO - {str(e)}")
 
-        df_resultado = pd.DataFrame(resultados)
-        st.success("✅ Processamento finalizado.")
-        st.dataframe(df_resultado)
+                progresso.progress((idx + 1) / total)
+                time.sleep(1 / rps)
 
-        from io import BytesIO
-        output = BytesIO()
-        df_resultado.to_excel(output, index=False)
-        st.download_button("📥 Baixar resultado (.xlsx)", data=output.getvalue(), file_name="resultado_envio_cpf.xlsx")
-    else:
-        st.warning("Por favor, preencha todos os campos e envie um arquivo.")
+            st.markdown("### ✅ Resultados:")
+            for r in resultados:
+                st.write(r)

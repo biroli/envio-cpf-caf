@@ -50,7 +50,7 @@ colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
 st.code("\t".join(colunas_selecionadas), language="text")
 
 st.subheader("2️⃣ Informações da Requisição")
-auth_token = st.text_input("Authorization (coloque o token completo):")
+auth_token = st.text_input("Authorization (coloque o token completo):", type="password")
 template_id = st.text_input("ID do Modelo (templateId):")
 
 col1, col2 = st.columns(2)
@@ -64,8 +64,9 @@ intervalo = 1 / frequencia if unidade_tempo == "segundo" else 60 / frequencia
 st.subheader("3️⃣ Upload da planilha")
 arquivo = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"])
 
-interromperamento = st.empty()
+interromper_btn = st.empty()
 interromper = False
+resultados = []
 
 def reset_interromper():
     global interromper
@@ -77,17 +78,22 @@ if arquivo and auth_token and template_id:
     progresso = st.progress(0, text="Aguardando início...")
     log_area = st.empty()
 
-    if interromperamento.button("🛑 Interromper Envio"):
-        interromper = True
-
     if st.button("🚀 Enviar Transações"):
         reset_interromper()
+        show_stop = True
+
         for i, linha in df.iterrows():
+            if show_stop:
+                if interromper_btn.button("🛑 Interromper Envio"):
+                    interromper = True
+                    show_stop = False
+
             if interromper:
                 st.warning("Envio interrompido pelo usuário.")
                 break
 
             payload = {"templateId": template_id, "attributes": {}, "files": []}
+            cpf_log = ""
 
             for campo in campos:
                 if campo in linha and not pd.isna(linha[campo]):
@@ -95,6 +101,7 @@ if arquivo and auth_token and template_id:
                     if campo == "CPF":
                         valor = re.sub(r"\D", "", valor).zfill(11)
                         payload["attributes"]["cpf"] = valor
+                        cpf_log = valor
                     elif campo == "NOME":
                         payload["attributes"]["name"] = valor
                     elif campo == "DATA_NASC":
@@ -123,11 +130,21 @@ if arquivo and auth_token and template_id:
                     },
                     json=payload
                 )
-                log_area.text(f"{i+1}/{total} → Status: {response.status_code} | CPF: {payload['attributes'].get('cpf', '')}")
+                status = f"{response.status_code} | {response.reason}"
+                log_area.text(f"{i+1}/{total} → CPF: {cpf_log} → {status}")
+                resultados.append({"CPF": cpf_log, "Status": response.status_code, "Resultado": response.text})
             except Exception as e:
-                log_area.text(f"{i+1}/{total} → Erro: {str(e)}")
+                erro = str(e)
+                log_area.text(f"{i+1}/{total} → CPF: {cpf_log} → ERRO: {erro}")
+                resultados.append({"CPF": cpf_log, "Status": "ERROR", "Resultado": erro})
 
             progresso.progress((i+1)/total, text=f"{i+1} de {total} enviados")
             time.sleep(intervalo)
 
         st.success("✅ Processamento concluído.")
+
+        if resultados:
+            st.subheader("📄 Baixar Relatório Final")
+            df_result = pd.DataFrame(resultados)
+            csv = df_result.to_csv(index=False).encode("utf-8")
+            st.download_button("📥 Baixar .csv com resultado", data=csv, file_name="resumo_transacoes.csv", mime="text/csv")

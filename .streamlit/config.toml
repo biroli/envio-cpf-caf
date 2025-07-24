@@ -1,7 +1,3 @@
 
 [server]
-maxUploadSize = 200
-
-[theme]
-base="light"
-primaryColor="#0C5B93"
+maxUploadSize = 1024

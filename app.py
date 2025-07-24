@@ -50,37 +50,27 @@ colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
 st.code("\t".join(colunas_selecionadas), language="text")
 
 st.subheader("2️⃣ Informações da Requisição")
-st.markdown("""
+import streamlit.components.v1 as components
+
+components.html("""
 <div style='position: relative;'>
-  <input id='authInput' type='password' placeholder='Authorization (coloque o token completo)' 
+  <input id='authToken' type='password' placeholder='Authorization (coloque o token completo)' 
          style='width: 100%; padding: 10px 40px 10px 10px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px;'
-         oninput='window.authToken = this.value'>
-  <span onclick='toggleAuthVisibility()' 
+         oninput="window.parent.postMessage({type: 'authToken', value: this.value}, '*')">
+  <span onclick="toggleVisibility()" 
         style='position: absolute; right: 10px; top: 50%; transform: translateY(-50%); cursor: pointer; color: gray;'>
     👁️
   </span>
 </div>
 <script>
-  function toggleAuthVisibility() {
-    const input = document.getElementById('authInput');
+  function toggleVisibility() {
+    const input = document.getElementById('authToken');
     input.type = input.type === 'password' ? 'text' : 'password';
   }
-
-  const authInput = document.getElementById('authInput');
-  const observer = new MutationObserver(() => {
-    if (window.authToken !== undefined) {
-      const streamlitInput = window.parent.document.querySelector('[data-testid="stTextInput"] input');
-      if (streamlitInput) {
-        streamlitInput.value = window.authToken;
-        streamlitInput.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    }
-  });
-  observer.observe(document.getElementById('authInput'), { attributes: true, childList: true, subtree: true });
 </script>
-""", unsafe_allow_html=True)
+""", height=70)
 
-auth_token = st.text_input(" ", type="password", key="auth_token")
+auth_token = st.experimental_get_query_params().get("auth_token", [""])[0]
 template_id = st.text_input("ID do Modelo (templateId):")
 
 col1, col2 = st.columns(2)

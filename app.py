@@ -1,131 +1,133 @@
-
 import streamlit as st
 import pandas as pd
 import time
 import requests
+import re
 
-# Configurações iniciais
-st.set_page_config(page_title="Envio de Transações CAF", layout="wide")
+st.set_page_config(page_title="Envio de Transações CAF", layout="centered")
 
-# Sidebar de preferências
-with st.sidebar:
-    st.markdown("### ⚙️ Preferências")
-    idioma = st.radio("Idioma / Language", ["Português", "English"])
-    tema = st.radio("Tema", ["Claro", "Escuro"])
-    if tema == "Escuro":
-        st.markdown("""
-            <style>
-            body, .stApp {
-                background-color: #111 !important;
-                color: #eee !important;
-            }
-            </style>
-        """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+    .main {
+        background-color: #0f0f0f;
+        color: white;
+    }
+    h1, h2, h3 {
+        color: #00ffd4;
+    }
+    .css-1v3fvcr {
+        background-color: #0f0f0f;
+    }
+    .stButton>button {
+        background-color: #00ffd4;
+        color: black;
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 10px;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# Título principal
-st.title("📄 Envio de Transações - CAF")
+st.title("📤 Envio de Transações para a CAF")
 
-st.markdown("#### Selecione os campos que estarão na sua planilha")
-
-# Campos disponíveis
-campos_disponiveis = {
-    "CPF": "cpf",
-    "NOME": "name",
-    "DATA_NASC": "birthDate",
-    "NOME_MAE": "motherName",
-    "CEP": "cep",
-    "EMAIL": "email",
-    "TEL": "phoneNumber",
-    "PLACA": "plate",
-    "SELFIE": "selfie",
-    "FRENTE_DOC": "frente_doc",
-    "VERSO_DOC": "verso_doc"
+st.subheader("1️⃣ Selecione os campos que estarão na planilha:")
+campos = {
+    "CPF": st.checkbox("CPF", value=True),
+    "NOME": st.checkbox("NOME"),
+    "DATA_NASC": st.checkbox("DATA_NASC"),
+    "NOME_MAE": st.checkbox("NOME_MAE"),
+    "CEP": st.checkbox("CEP"),
+    "EMAIL": st.checkbox("EMAIL"),
+    "TEL": st.checkbox("TEL"),
+    "PLACA": st.checkbox("PLACA"),
+    "SELFIE": st.checkbox("SELFIE"),
+    "FRENTE_DOC": st.checkbox("FRENTE_DOC"),
+    "VERSO_DOC": st.checkbox("VERSO_DOC"),
 }
 
-# Seletor de campos
-col1, col2, col3 = st.columns(3)
-selecionados = []
-for i, campo in enumerate(campos_disponiveis):
-    with [col1, col2, col3][i % 3]:
-        if st.checkbox(campo, value=True if campo == "CPF" else False):
-            selecionados.append(campo)
+st.subheader("📄 Exemplo da planilha esperada:")
+colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
+st.code("\t".join(colunas_selecionadas), language="text")
 
-# Exemplo de planilha
-if selecionados:
-    st.markdown("#### Exemplo de estrutura esperada da planilha")
-    exemplo = pd.DataFrame({campo: ["exemplo"] for campo in selecionados})
-    st.dataframe(exemplo, use_container_width=True)
+st.subheader("2️⃣ Informações da Requisição")
+auth_token = st.text_input("Authorization (coloque o token completo):")
+template_id = st.text_input("ID do Modelo (templateId):")
 
-st.markdown("---")
-st.markdown("### 📤 Envio de arquivo e dados da requisição")
+col1, col2 = st.columns(2)
+with col1:
+    frequencia = st.number_input("Quantidade de requisições", min_value=1, value=2)
+with col2:
+    unidade_tempo = st.selectbox("Por...", options=["segundo", "minuto"])
 
-# Upload da planilha
-arquivo = st.file_uploader("Faça upload da planilha com os dados", type=["xlsx", "csv"])
+intervalo = 1 / frequencia if unidade_tempo == "segundo" else 60 / frequencia
 
-# Inputs adicionais
-authorization = st.text_input("Authorization (cole o token completo)", type="password")
-template_id = st.text_input("ID do modelo de consulta (templateId)")
-frequencia = st.number_input("Quantidade de requisições", min_value=1, value=2)
-modo = st.radio("Tempo entre requisições", ["Por segundo", "Por minuto"])
+st.subheader("3️⃣ Upload da planilha")
+arquivo = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"])
 
-# Processar planilha e enviar
-if st.button("🚀 Enviar Transações") and arquivo and authorization and template_id:
-    if arquivo.name.endswith(".csv"):
-        df = pd.read_csv(arquivo)
-    else:
-        df = pd.read_excel(arquivo)
+interromperamento = st.empty()
+interromper = False
 
-    col_map = {campo: campos_disponiveis[campo] for campo in selecionados}
-    df.columns = df.columns.str.strip().str.upper()
-    df = df[[col for col in df.columns if col in selecionados]]
+def reset_interromper():
+    global interromper
+    interromper = False
 
+if arquivo and auth_token and template_id:
+    df = pd.read_excel(arquivo)
     total = len(df)
-    sucesso = 0
+    progresso = st.progress(0, text="Aguardando início...")
+    log_area = st.empty()
 
-    barra = st.progress(0)
-    status_area = st.empty()
+    if interromperamento.button("🛑 Interromper Envio"):
+        interromper = True
 
-    for i, row in df.iterrows():
-        payload = {"templateId": template_id}
+    if st.button("🚀 Enviar Transações"):
+        reset_interromper()
+        for i, linha in df.iterrows():
+            if interromper:
+                st.warning("Envio interrompido pelo usuário.")
+                break
 
-        attributes = {}
-        files = []
+            payload = {"templateId": template_id, "attributes": {}, "files": []}
 
-        for col in selecionados:
-            valor = str(row.get(col, "")).strip()
-            if col == "CPF":
-                valor = valor.replace(".", "").replace("-", "").zfill(11)
-            if col == "SELFIE":
-                files.append({"data": valor, "type": "SELFIE"})
-            elif col == "FRENTE_DOC":
-                files.append({"data": valor, "type": "OTHERS"})
-            elif col == "VERSO_DOC":
-                files.append({"data": valor, "type": "OTHERS"})
-            elif col in campos_disponiveis:
-                key = campos_disponiveis[col]
-                if key not in ["selfie", "frente_doc", "verso_doc"]:
-                    attributes[key] = valor
+            for campo in campos:
+                if campo in linha and not pd.isna(linha[campo]):
+                    valor = str(linha[campo]).strip()
+                    if campo == "CPF":
+                        valor = re.sub(r"\D", "", valor).zfill(11)
+                        payload["attributes"]["cpf"] = valor
+                    elif campo == "NOME":
+                        payload["attributes"]["name"] = valor
+                    elif campo == "DATA_NASC":
+                        payload["attributes"]["birthDate"] = valor
+                    elif campo == "NOME_MAE":
+                        payload["attributes"]["motherName"] = valor
+                    elif campo == "CEP":
+                        payload["attributes"]["cep"] = valor
+                    elif campo == "EMAIL":
+                        payload["attributes"]["email"] = valor
+                    elif campo == "TEL":
+                        payload["attributes"]["phoneNumber"] = valor
+                    elif campo == "PLACA":
+                        payload["attributes"]["plate"] = valor
+                    elif campo == "SELFIE":
+                        payload["files"].append({"data": valor, "type": "SELFIE"})
+                    elif campo in ["FRENTE_DOC", "VERSO_DOC"]:
+                        payload["files"].append({"data": valor, "type": "OTHERS"})
 
-        if attributes:
-            payload["attributes"] = attributes
-        if files:
-            payload["files"] = files
+            try:
+                response = requests.post(
+                    url="https://api.combateafraude.com/v1/transactions?origin=TRUST",
+                    headers={
+                        "Authorization": auth_token,
+                        "Content-Type": "application/json"
+                    },
+                    json=payload
+                )
+                log_area.text(f"{i+1}/{total} → Status: {response.status_code} | CPF: {payload['attributes'].get('cpf', '')}")
+            except Exception as e:
+                log_area.text(f"{i+1}/{total} → Erro: {str(e)}")
 
-        headers = {
-            "Authorization": authorization,
-            "Content-Type": "application/json"
-        }
+            progresso.progress((i+1)/total, text=f"{i+1} de {total} enviados")
+            time.sleep(intervalo)
 
-        r = requests.post("https://api.combateafraude.com/v1/transactions?origin=TRUST",
-                          json=payload, headers=headers)
-
-        if r.status_code == 200 or r.status_code == 201:
-            sucesso += 1
-
-        barra.progress((i+1)/total)
-        status_area.markdown(f"**{i+1}/{total} enviados** - Status: {r.status_code}")
-
-        delay = 60/frequencia if modo == "Por minuto" else 1/frequencia
-        time.sleep(delay)
-
-    st.success(f"✅ Envio finalizado: {sucesso} de {total} enviados com sucesso.")
+        st.success("✅ Processamento concluído.")

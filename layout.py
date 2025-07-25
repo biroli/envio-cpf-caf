@@ -1,34 +1,44 @@
 import streamlit as st
 from config import CAMPOS_DISPONIVEIS
 
+
 def render_layout():
-    st.title("📤 Envio de Transações para a CAF")
+    st.markdown("## 1️⃣ Selecione os campos que estarão na planilha:")
 
-    st.subheader("1️⃣ Selecione os campos que estarão na planilha:")
-    for campo in CAMPOS_DISPONIVEIS:
-        st.session_state[campo] = st.checkbox(campo, value=(campo == "CPF"))
+    if "campos_selecionados" not in st.session_state:
+        st.session_state.campos_selecionados = list(CAMPOS_DISPONIVEIS.keys())
 
-    st.subheader("📄 Exemplo da planilha esperada:")
-    campos_selecionados = [campo for campo in CAMPOS_DISPONIVEIS if st.session_state.get(campo)]
-    st.code("\t".join(campos_selecionados), language="text")
+    colunas = list(CAMPOS_DISPONIVEIS.keys())
 
-    st.subheader("2️⃣ Informações da Requisição")
-    st.text_input("Authorization (coloque o token completo):", key="auth_token", type="password")
+    selecionados = st.multiselect(
+        "Campos disponíveis:", options=colunas, default=st.session_state.campos_selecionados, key="campos_selecionados"
+    )
+
+    if not selecionados:
+        st.warning("Selecione pelo menos um campo.")
+
+    st.markdown("### 📄 Exemplo da planilha esperada:")
+    st.code("\t".join(selecionados), language="text")
+
+    st.markdown("## 2️⃣ Informações da Requisição")
+
+    st.text_input("Authorization (coloque o token completo):", type="password", key="auth_token")
     st.text_input("ID do Modelo (templateId):", key="template_id")
 
     col1, col2 = st.columns(2)
     with col1:
-        st.number_input("Quantidade de requisições", min_value=1, value=2, key="frequencia")
+        st.number_input("Quantidade de requisições", min_value=1, value=1, step=1, key="frequencia")
     with col2:
         st.selectbox("Por...", options=["segundo", "minuto"], key="unidade_tempo")
 
-    st.subheader("3️⃣ Upload da planilha")
+    st.markdown("## 3️⃣ Upload da planilha")
     st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"], key="arquivo")
 
-    if st.session_state.get("envio_em_andamento"):
+    if st.session_state.get("enviando"):
         if st.button("🛑 Interromper envio"):
-            st.session_state["interromper"] = True
-
-    if not st.session_state.get("envio_em_andamento"):
+            st.session_state.enviar = False
+            st.rerun()
+    else:
         if st.button("🚀 Iniciar envio"):
-            st.session_state["botao_iniciar"] = True
+            st.session_state.enviar = True
+            st.rerun()

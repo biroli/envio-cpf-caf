@@ -30,7 +30,7 @@ st.markdown("""
 
 st.title("📤 Envio de Transações para a CAF")
 
-st.subheader(1️⃣ Selecione os campos que estarão na planilha:")
+st.subheader("1⃣ Selecione os campos que estarão na planilha:")
 campos = {
     "CPF": st.checkbox("CPF", value=True),
     "NOME": st.checkbox("NOME"),
@@ -49,7 +49,7 @@ st.subheader("📄 Exemplo da planilha esperada:")
 colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
 st.code("\t".join(colunas_selecionadas), language="text")
 
-st.subheader("2️⃣ Informações da Requisição")
+st.subheader("2⃣ Informações da Requisição")
 auth_token = st.text_input("Authorization (coloque o token completo):")
 template_id = st.text_input("ID do Modelo (templateId):")
 
@@ -61,7 +61,7 @@ with col2:
 
 intervalo = 1 / frequencia if unidade_tempo == "segundo" else 60 / frequencia
 
-st.subheader("3️⃣ Upload da planilha")
+st.subheader("3⃣ Upload da planilha")
 arquivo = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"])
 
 interromperamento = st.empty()

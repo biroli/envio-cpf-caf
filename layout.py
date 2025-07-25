@@ -19,7 +19,7 @@ def render_layout():
     for campo in CAMPOS_DISPONIVEIS:
         st.session_state[campo] = st.checkbox(campo, value=(campo == "CPF"))
 
-    st.subheader("📄 Copie e cole na primeira linha da sua planilha:")
+    st.subheader("📄 Exemplo da planilha esperada:")
     colunas = [c for c in CAMPOS_DISPONIVEIS if st.session_state.get(c)]
     st.code("\t".join(colunas), language="text")
 
@@ -35,3 +35,5 @@ def render_layout():
 
     st.subheader("3️⃣ Upload da planilha")
     st.session_state["arquivo"] = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"])
+
+    st.session_state["iniciar_envio"] = st.button("🚀 Iniciar envio")

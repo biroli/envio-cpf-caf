@@ -7,6 +7,9 @@ from config import CAMPOS_DISPONIVEIS
 from io import StringIO
 
 def processar_planilha(arquivo, auth_token, template_id):
+    if not st.session_state.get("iniciar_envio"):
+        return
+
     campos_selecionados = {c: CAMPOS_DISPONIVEIS[c] for c in CAMPOS_DISPONIVEIS if st.session_state.get(c)}
     df = pd.read_excel(arquivo)
     total = len(df)
@@ -61,7 +64,6 @@ def processar_planilha(arquivo, auth_token, template_id):
 
     st.success("✅ Processamento concluído.")
 
-    # Geração de relatório CSV
     relatorio_df = pd.DataFrame(resultados)
     csv = relatorio_df.to_csv(index=False).encode("utf-8")
     st.download_button("📄 Baixar relatório final (.csv)", csv, "relatorio_transacoes.csv", mime="text/csv")

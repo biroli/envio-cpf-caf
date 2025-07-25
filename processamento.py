@@ -21,6 +21,8 @@ def processar_planilha(arquivo, auth_token, template_id):
 
     for i, linha in df.iterrows():
         payload = {"templateId": template_id, "attributes": {}, "files": []}
+        entrada_placa = ""  # vai guardar o valor tratado da placa
+
         for campo, tipo in campos_selecionados.items():
             if campo in linha and not pd.isna(linha[campo]):
                 valor = str(linha[campo]).strip()
@@ -32,6 +34,7 @@ def processar_planilha(arquivo, auth_token, template_id):
                     payload["attributes"][tipo] = valor
                 elif campo == "PLACA":
                     valor = re.sub(r"[^A-Z0-9]", "", valor.upper())
+                    entrada_placa = valor  # salva valor formatado
                     payload["attributes"][tipo] = valor
                 elif campo in ["SELFIE", "FRENTE_DOC", "VERSO_DOC"]:
                     payload["files"].append({"data": valor, "type": tipo})
@@ -51,6 +54,7 @@ def processar_planilha(arquivo, auth_token, template_id):
             log_area.text(f"{i+1}/{total} → Status: {status} | CPF: {payload['attributes'].get('cpf', '')}")
             resultados.append({
                 "cpf": payload["attributes"].get("cpf", ""),
+                "placa_enviada": entrada_placa,
                 "status": status,
                 "mensagem": response.text if status != 201 else "OK"
             })
@@ -58,6 +62,7 @@ def processar_planilha(arquivo, auth_token, template_id):
             log_area.text(f"{i+1}/{total} → Erro: {str(e)}")
             resultados.append({
                 "cpf": payload["attributes"].get("cpf", ""),
+                "placa_enviada": entrada_placa,
                 "status": "ERRO",
                 "mensagem": str(e)
             })

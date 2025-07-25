@@ -70,11 +70,6 @@ st.markdown("""
         color: gray;
     }
 </style>
-<div class="password-wrapper">
-  <input type="password" id="auth_field" placeholder="Authorization (coloque o token completo)" 
-         class="stTextInput" oninput="setAuthValue(this.value)">
-  <span class="toggle-eye" onclick="togglePassword()">👁️</span>
-</div>
 <script>
   function togglePassword() {
     var input = document.getElementById("auth_field");

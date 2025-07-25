@@ -52,12 +52,17 @@ st.code("\t".join(colunas_selecionadas), language="text")
 st.subheader("2️⃣ Informações da Requisição")
 import streamlit.components.v1 as components
 
+st.markdown("Authorization (coloque o token completo):", unsafe_allow_html=True)
+
 components.html("""
-<div style='position: relative; margin-bottom: 1rem;'>
-  <input id='authInput' type='password' placeholder='Authorization (coloque o token completo)' 
-         style='width: 100%; padding: 10px 40px 10px 10px; border-radius: 8px;
-                border: 1px solid #444; font-size: 16px; background-color: #1c1c1c;
-                color: #f1f1f1; box-sizing: border-box;'>
+<div style='position: relative; margin-top: 5px; margin-bottom: 20px;'>
+  <input id='authInput' type='password' 
+         style='width: 100%; padding: 0.75rem 2.5rem 0.75rem 0.75rem; font-size: 1rem;
+                border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); 
+                background-color: #262730; color: #f1f1f1; outline: none; transition: border 0.2s;'
+         onfocus='this.style.border = "1px solid #00ffd4";'
+         onblur='this.style.border = "1px solid rgba(255,255,255,0.1)";'
+         oninput='window.parent.postMessage({type: "authToken", value: this.value}, "*")'>
   <span onclick='toggleVisibility()' 
         style='position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
                cursor: pointer;'>

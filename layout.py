@@ -4,12 +4,12 @@ from config import CAMPOS_DISPONIVEIS
 def render_layout():
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
-        html, body, [class*="css"] {
-            font-family: 'Inter', sans-serif;
+        .main {
             background-color: #0F0F1C;
             color: #F0F0F5;
+            font-family: 'Inter', sans-serif;
         }
 
         h1, h2, h3 {
@@ -31,19 +31,10 @@ def render_layout():
             background-color: #5C45E3;
         }
 
-        .stCheckbox>label {
-            font-size: 0.95rem;
-        }
-
         .stAlert {
             background-color: #1E1E2F;
             border-left: 4px solid #F39C12;
         }
-
-        .stMarkdown {
-            margin-bottom: 1.5rem;
-        }
-
     </style>
     """, unsafe_allow_html=True)
 
@@ -61,5 +52,20 @@ def render_layout():
         st.warning("⚠️ Você deve selecionar pelo menos um campo para continuar.")
         return  # Para a execução aqui se não tiver campo selecionado
 
-    st.markdown("#### 🧾 Exemplo de estrutura da planilha com os campos selecionados:")
-    st.dataframe({col: [f"exemplo_{col.lower()}"] for col in colunas})
+    st.subheader("📄 Copie e cole na primeira linha da sua planilha:")
+    st.code("\t".join(colunas), language="text")
+
+    st.subheader("2️⃣ Informações da Requisição")
+    st.session_state["auth_token"] = st.text_input("Authorization (coloque o token completo):", type="password")
+    st.session_state["template_id"] = st.text_input("ID do Modelo (templateId):")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.session_state["frequencia"] = st.number_input("Quantidade de requisições", min_value=1, value=2)
+    with col2:
+        st.session_state["unidade_tempo"] = st.selectbox("Por...", options=["segundo", "minuto"])
+
+    st.subheader("3️⃣ Upload da planilha")
+    st.session_state["arquivo"] = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"])
+
+    st.session_state["iniciar_envio"] = st.button("🚀 Iniciar envio")

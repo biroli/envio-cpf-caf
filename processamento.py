@@ -4,6 +4,7 @@ import requests
 import time
 import re
 from config import CAMPOS_DISPONIVEIS
+from io import StringIO
 
 def processar_planilha(arquivo, auth_token, template_id):
     campos_selecionados = {c: CAMPOS_DISPONIVEIS[c] for c in CAMPOS_DISPONIVEIS if st.session_state.get(c)}
@@ -12,6 +13,8 @@ def processar_planilha(arquivo, auth_token, template_id):
     progresso = st.progress(0, text="Iniciando...")
     log_area = st.empty()
     intervalo = 1 / st.session_state["frequencia"] if st.session_state["unidade_tempo"] == "segundo" else 60 / st.session_state["frequencia"]
+
+    resultados = []
 
     for i, linha in df.iterrows():
         payload = {"templateId": template_id, "attributes": {}, "files": []}
@@ -38,11 +41,27 @@ def processar_planilha(arquivo, auth_token, template_id):
                 },
                 json=payload
             )
-            log_area.text(f"{i+1}/{total} → Status: {response.status_code} | CPF: {payload['attributes'].get('cpf', '')}")
+            status = response.status_code
+            log_area.text(f"{i+1}/{total} → Status: {status} | CPF: {payload['attributes'].get('cpf', '')}")
+            resultados.append({
+                "cpf": payload["attributes"].get("cpf", ""),
+                "status": status,
+                "mensagem": response.text if status != 201 else "OK"
+            })
         except Exception as e:
             log_area.text(f"{i+1}/{total} → Erro: {str(e)}")
+            resultados.append({
+                "cpf": payload["attributes"].get("cpf", ""),
+                "status": "ERRO",
+                "mensagem": str(e)
+            })
 
         progresso.progress((i+1)/total, text=f"{i+1} de {total} enviados")
         time.sleep(intervalo)
 
     st.success("✅ Processamento concluído.")
+
+    # Geração de relatório CSV
+    relatorio_df = pd.DataFrame(resultados)
+    csv = relatorio_df.to_csv(index=False).encode("utf-8")
+    st.download_button("📄 Baixar relatório final (.csv)", csv, "relatorio_transacoes.csv", mime="text/csv")

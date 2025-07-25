@@ -4,15 +4,20 @@ from processamento import processar_planilha
 
 st.set_page_config(page_title="Envio de Transações CAF", layout="centered")
 
-# Inicializa os estados obrigatórios
-for key in ["iniciar_envio", "envio_em_andamento", "interromper", "arquivo", "auth_token", "template_id"]:
-    if key not in st.session_state:
-        st.session_state[key] = None if key == "arquivo" else False
+# Inicializa estados padrão
+st.session_state.setdefault("iniciar_envio", False)
+st.session_state.setdefault("envio_em_andamento", False)
+st.session_state.setdefault("interromper", False)
+st.session_state.setdefault("arquivo", None)
+st.session_state.setdefault("auth_token", "")
+st.session_state.setdefault("template_id", "")
+st.session_state.setdefault("frequencia", 1)
+st.session_state.setdefault("unidade_tempo", "segundo")
 
 # Renderiza a interface
 render_layout()
 
-# Só chama processamento se todos os campos estiverem preenchidos
+# Só chama o processamento se tudo estiver pronto
 if (
     st.session_state["iniciar_envio"]
     and st.session_state["arquivo"]

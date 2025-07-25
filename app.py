@@ -50,44 +50,42 @@ colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
 st.code("\t".join(colunas_selecionadas), language="text")
 
 st.subheader("2️⃣ Informações da Requisição")
-import streamlit.components.v1 as components
+from streamlit.components.v1 import html
 
-st.markdown("Authorization (coloque o token completo):", unsafe_allow_html=True)
-
-components.html("""
-<div style='position: relative; margin-top: 5px; margin-bottom: 20px;'>
-  <input id='authInput' type='password' 
-         style='width: 100%; padding: 0.75rem 2.5rem 0.75rem 0.75rem; font-size: 1rem;
-                border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); 
-                background-color: #262730; color: #f1f1f1; outline: none; transition: border 0.2s;'
-         onfocus='this.style.border = "1px solid #00ffd4";'
-         onblur='this.style.border = "1px solid rgba(255,255,255,0.1)";'
-         oninput='window.parent.postMessage({type: "authToken", value: this.value}, "*")'>
-  <span onclick='toggleVisibility()' 
-        style='position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-               cursor: pointer;'>
-    <svg xmlns='http://www.w3.org/2000/svg' fill='gray' height='20' viewBox='0 0 24 24' width='20'>
-      <path d='M0 0h24v24H0z' fill='none'/>
-      <path d='M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zm0 13c-3.04 0-5.5-2.46-5.5-5.5S8.96 6.5 12 6.5 17.5 8.96 17.5 12 15.04 17.5 12 17.5zm0-9A3.5 3.5 0 1 0 15.5 12 3.5 3.5 0 0 0 12 8.5z'/>
-    </svg>
-  </span>
+# Campo com label acima, mesmo estilo dos outros, e botão de olho funcional
+st.markdown("""
+<style>
+    .password-wrapper {
+        position: relative;
+    }
+    .password-wrapper input {
+        padding-right: 40px !important;
+    }
+    .toggle-eye {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: gray;
+    }
+</style>
+<div class="password-wrapper">
+  <input type="password" id="auth_field" placeholder="Authorization (coloque o token completo)" 
+         class="stTextInput" oninput="setAuthValue(this.value)">
+  <span class="toggle-eye" onclick="togglePassword()">👁️</span>
 </div>
 <script>
-  function toggleVisibility() {
-    const input = document.getElementById('authInput');
-    input.type = input.type === 'password' ? 'text' : 'password';
+  function togglePassword() {
+    var input = document.getElementById("auth_field");
+    input.type = input.type === "password" ? "text" : "password";
   }
-
-  window.addEventListener("message", (event) => {
-    if (event.data.type === "getAuthToken") {
-      const token = document.getElementById("authInput").value;
-      window.parent.postMessage({type: "authToken", value: token}, "*");
-    }
-  });
+  function setAuthValue(val) {
+    window.parent.postMessage({type: "streamlit:setComponentValue", value: val}, "*");
+  }
 </script>
-""", height=80)
-
-auth_token = st.session_state.get("auth_token", "")
+""", unsafe_allow_html=True)
+auth_token = st.text_input("Authorization (coloque o token completo):", type="password")
 template_id = st.text_input("ID do Modelo (templateId):")
 
 col1, col2 = st.columns(2)

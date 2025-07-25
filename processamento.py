@@ -6,10 +6,11 @@ import re
 from config import CAMPOS_DISPONIVEIS
 
 def processar_planilha(arquivo, auth_token, template_id):
-    if st.session_state.get("iniciar_envio") and st.session_state.get("arquivo") and st.session_state.get("auth_token") and st.session_state.get("template_id"):
-        st.session_state["envio_em_andamento"] = True
-        st.session_state["interromper"] = False
-        st.experimental_rerun()
+    if st.session_state.get("iniciar_envio"):
+        if not st.session_state.get("envio_em_andamento"):
+            st.session_state["envio_em_andamento"] = True
+            st.session_state["interromper"] = False
+            st.experimental_rerun()
 
     if not st.session_state.get("envio_em_andamento"):
         return

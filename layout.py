@@ -37,3 +37,7 @@ def render_layout():
     st.session_state["arquivo"] = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"])
 
     st.session_state["iniciar_envio"] = st.button("🚀 Iniciar envio")
+
+    # 🛑 Botão de interromper envio (aparece somente durante o envio)
+    if st.session_state.get("envio_em_andamento"):
+        st.session_state["interromper"] = st.button("🛑 Interromper envio")

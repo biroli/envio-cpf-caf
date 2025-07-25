@@ -15,13 +15,21 @@ def processar_planilha(arquivo, auth_token, template_id):
     total = len(df)
     progresso = st.progress(0, text="Iniciando...")
     log_area = st.empty()
-    intervalo = 1 / st.session_state["frequencia"] if st.session_state["unidade_tempo"] == "segundo" else 60 / st.session_state["frequencia"]
 
+    # Ativa o estado de envio em andamento
+    st.session_state["envio_em_andamento"] = True
+    st.session_state["interromper"] = False
+
+    intervalo = 1 / st.session_state["frequencia"] if st.session_state["unidade_tempo"] == "segundo" else 60 / st.session_state["frequencia"]
     resultados = []
 
     for i, linha in df.iterrows():
+        if st.session_state.get("interromper"):
+            st.warning("Envio interrompido pelo usuário.")
+            break
+
         payload = {"templateId": template_id, "attributes": {}, "files": []}
-        entrada_placa = ""  # vai guardar o valor tratado da placa
+        entrada_placa = ""
 
         for campo, tipo in campos_selecionados.items():
             if campo in linha and not pd.isna(linha[campo]):
@@ -34,7 +42,7 @@ def processar_planilha(arquivo, auth_token, template_id):
                     payload["attributes"][tipo] = valor
                 elif campo == "PLACA":
                     valor = re.sub(r"[^A-Z0-9]", "", valor.upper())
-                    entrada_placa = valor  # salva valor formatado
+                    entrada_placa = valor
                     payload["attributes"][tipo] = valor
                 elif campo in ["SELFIE", "FRENTE_DOC", "VERSO_DOC"]:
                     payload["files"].append({"data": valor, "type": tipo})
@@ -71,6 +79,7 @@ def processar_planilha(arquivo, auth_token, template_id):
         time.sleep(intervalo)
 
     st.success("✅ Processamento concluído.")
+    st.session_state["envio_em_andamento"] = False
 
     relatorio_df = pd.DataFrame(resultados)
     csv = relatorio_df.to_csv(index=False).encode("utf-8")

@@ -15,12 +15,19 @@ def render_layout():
 
     st.title("📤 Envio de Transações para a CAF")
 
-    st.subheader("1️⃣ Selecione os campos que estarão na planilha:")
+    st.subheader("1️⃣ Selecione os campos que estarão na planilha (obrigatório):")
     for campo in CAMPOS_DISPONIVEIS:
-        st.session_state[campo] = st.checkbox(campo, value=(campo == "CPF"))
+        if campo not in st.session_state:
+            st.session_state[campo] = campo == "CPF"
+        st.session_state[campo] = st.checkbox(campo, value=st.session_state[campo])
+
+    colunas = [c for c in CAMPOS_DISPONIVEIS if st.session_state.get(c)]
+
+    if not colunas:
+        st.warning("⚠️ Você deve selecionar pelo menos um campo para continuar.")
+        return  # Para a execução aqui se não tiver campo selecionado
 
     st.subheader("📄 Copie e cole na primeira linha da sua planilha:")
-    colunas = [c for c in CAMPOS_DISPONIVEIS if st.session_state.get(c)]
     st.code("\t".join(colunas), language="text")
 
     st.subheader("2️⃣ Informações da Requisição")

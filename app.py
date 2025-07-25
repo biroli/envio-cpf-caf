@@ -132,7 +132,8 @@ if arquivo and auth_token and template_id:
                     elif campo == "NOME_MAE":
                         payload["attributes"]["motherName"] = valor
                     elif campo == "CEP":
-                        payload["attributes"]["cep"] = valor
+                        valor = re.sub(r"\\D", "", valor).zfill(8)
+			payload["attributes"]["cep"] = valor
                     elif campo == "EMAIL":
                         payload["attributes"]["email"] = valor
                     elif campo == "TEL":

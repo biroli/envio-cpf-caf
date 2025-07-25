@@ -60,7 +60,7 @@ def render_layout():
     """, unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="logo-container"><img src="https://www.caf.io/logo.svg" alt="CAF Logo"/></div>',
+        '<div class="logo-container"><img src="https://uploads-ssl.webflow.com/6127f0cf7b3c241b35b82ef5/612804c6435c0210a842b9b6_caf-logo-white.svg" alt="CAF Logo"/></div>',
         unsafe_allow_html=True
     )
 

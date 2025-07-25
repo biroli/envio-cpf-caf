@@ -4,38 +4,38 @@ from config import CAMPOS_DISPONIVEIS
 def render_layout():
     st.markdown("""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
 
-        .main {
-            background-color: #0F0F1C;
-            color: #F0F0F5;
-            font-family: 'Inter', sans-serif;
-        }
+    .main {
+        background-color: #0F0F1C;
+        color: #F0F0F5;
+        font-family: 'Inter', sans-serif;
+    }
 
-        h1, h2, h3 {
-            color: #7B61FF;
-            font-weight: 600;
-        }
+    h1, h2, h3 {
+        color: #7B61FF;
+        font-weight: 600;
+    }
 
-        .stButton>button {
-            background-color: #7B61FF;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
-            font-weight: 600;
-            transition: background-color 0.3s ease;
-        }
+    .stButton>button {
+        background-color: #7B61FF;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: background-color 0.3s ease;
+    }
 
-        .stButton>button:hover {
-            background-color: #5C45E3;
-        }
+    .stButton>button:hover {
+        background-color: #5C45E3;
+    }
 
-        .stAlert {
-            background-color: #1E1E2F;
-            border-left: 4px solid #F39C12;
-        }
-    </style>
+    .stAlert {
+        background-color: #1E1E2F;
+        border-left: 4px solid #F39C12;
+    }
+</style>
     """, unsafe_allow_html=True)
 
     st.title("📤 Envio de Transações para a CAF")

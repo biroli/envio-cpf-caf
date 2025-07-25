@@ -30,6 +30,9 @@ def processar_planilha(arquivo, auth_token, template_id):
                 elif campo == "CEP":
                     valor = re.sub(r"\D", "", valor).zfill(8)
                     payload["attributes"][tipo] = valor
+                elif campo == "PLACA":
+                    valor = re.sub(r"[^A-Z0-9]", "", valor.upper())
+                    payload["attributes"][tipo] = valor
                 elif campo in ["SELFIE", "FRENTE_DOC", "VERSO_DOC"]:
                     payload["files"].append({"data": valor, "type": tipo})
                 else:

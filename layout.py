@@ -15,13 +15,21 @@ def render_layout():
 
     st.title("📤 Envio de Transações para a CAF")
 
-    st.subheader("1️⃣ Selecione os campos que estarão na planilha:")
+    st.subheader("1️⃣ Selecione os campos que estarão na planilha (obrigatório):")
+
+    selecionou_algum = False
     for campo in CAMPOS_DISPONIVEIS:
-        st.session_state[campo] = st.checkbox(campo, value=(campo == "CPF"))
+        valor = st.checkbox(campo, value=(campo == "CPF"))
+        st.session_state[campo] = valor
+        if valor:
+            selecionou_algum = True
+
+    if not selecionou_algum:
+        st.warning("⚠️ Você precisa selecionar pelo menos um campo para continuar.")
 
     st.subheader("📄 Exemplo da planilha esperada:")
     colunas = [c for c in CAMPOS_DISPONIVEIS if st.session_state.get(c)]
-    st.code("\t".join(colunas), language="text")
+    st.code("\t".join(colunas) if colunas else "Nenhum campo selecionado", language="text")
 
     st.subheader("2️⃣ Informações da Requisição")
     st.session_state["auth_token"] = st.text_input("Authorization (coloque o token completo):", type="password")
@@ -36,4 +44,7 @@ def render_layout():
     st.subheader("3️⃣ Upload da planilha")
     st.session_state["arquivo"] = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"])
 
-    st.session_state["iniciar_envio"] = st.button("🚀 Iniciar envio")
+    if selecionou_algum:
+        st.session_state["iniciar_envio"] = st.button("🚀 Iniciar envio")
+    else:
+        st.session_state["iniciar_envio"] = False

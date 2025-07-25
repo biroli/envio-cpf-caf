@@ -30,7 +30,7 @@ st.markdown("""
 
 st.title("📤 Envio de Transações para a CAF")
 
-st.subheader("1️⃣ Selecione os campos que estarão na planilha:")
+st.subheader(1️⃣ Selecione os campos que estarão na planilha:")
 campos = {
     "CPF": st.checkbox("CPF", value=True),
     "NOME": st.checkbox("NOME"),
@@ -50,37 +50,7 @@ colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
 st.code("\t".join(colunas_selecionadas), language="text")
 
 st.subheader("2️⃣ Informações da Requisição")
-from streamlit.components.v1 import html
-
-# Campo com label acima, mesmo estilo dos outros, e botão de olho funcional
-st.markdown("""
-<style>
-    .password-wrapper {
-        position: relative;
-    }
-    .password-wrapper input {
-        padding-right: 40px !important;
-    }
-    .toggle-eye {
-        position: absolute;
-        right: 10px;
-        top: 50%;
-        transform: translateY(-50%);
-        cursor: pointer;
-        color: gray;
-    }
-</style>
-<script>
-  function togglePassword() {
-    var input = document.getElementById("auth_field");
-    input.type = input.type === "password" ? "text" : "password";
-  }
-  function setAuthValue(val) {
-    window.parent.postMessage({type: "streamlit:setComponentValue", value: val}, "*");
-  }
-</script>
-""", unsafe_allow_html=True)
-auth_token = st.text_input("Authorization (coloque o token completo):", type="password")
+auth_token = st.text_input("Authorization (coloque o token completo):")
 template_id = st.text_input("ID do Modelo (templateId):")
 
 col1, col2 = st.columns(2)
@@ -132,8 +102,7 @@ if arquivo and auth_token and template_id:
                     elif campo == "NOME_MAE":
                         payload["attributes"]["motherName"] = valor
                     elif campo == "CEP":
-                        valor = re.sub(r"\\D", "", valor).zfill(8)
-			payload["attributes"]["cep"] = valor
+                        payload["attributes"]["cep"] = valor
                     elif campo == "EMAIL":
                         payload["attributes"]["email"] = valor
                     elif campo == "TEL":

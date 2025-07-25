@@ -9,5 +9,5 @@ CAMPOS_DISPONIVEIS = {
     "PLACA": "plate",
     "SELFIE": "SELFIE",
     "FRENTE_DOC": "OTHERS",
-    "VERSO_DOC": "OTHERS",
+    "VERSO_DOC": "OTHERS"
 }

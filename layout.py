@@ -38,6 +38,6 @@ def render_layout():
 
     st.session_state["iniciar_envio"] = st.button("🚀 Iniciar envio")
 
-    # 🛑 Botão de interromper envio (aparece somente durante o envio)
+    # 🛑 Botão de interromper envio (aparece durante envio)
     if st.session_state.get("envio_em_andamento"):
         st.session_state["interromper"] = st.button("🛑 Interromper envio")

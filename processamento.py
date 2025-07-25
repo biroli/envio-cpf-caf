@@ -1,24 +1,31 @@
 import streamlit as st
 import pandas as pd
-import time
 import requests
+import time
 import re
+from io import StringIO
 
-def processar_planilha(arquivo, auth_token, template_id, intervalo, campos, interromper_key):
+def processar_planilha(arquivo, auth_token, template_id, frequencia, unidade_tempo, campos_selecionados):
     df = pd.read_excel(arquivo)
     total = len(df)
-    progresso = st.progress(0, text="Enviando...")
-    log_area = st.empty()
-    logs = []
+    intervalo = 1 / frequencia if unidade_tempo == "segundo" else 60 / frequencia
 
+    progresso = st.progress(0, text="Iniciando envio...")
+    log_area = st.empty()
+    st.session_state["interromper_envio"] = False
+    interromperamento = st.empty()
+
+    if interromperamento.button("🛑 Interromper envio"):
+        st.session_state["interromper_envio"] = True
+
+    logs = []
     for i, linha in df.iterrows():
-        if st.session_state.get(interromper_key):
-            st.warning("🚫 Envio interrompido.")
+        if st.session_state.get("interromper_envio"):
+            st.warning("Envio interrompido pelo usuário.")
             break
 
         payload = {"templateId": template_id, "attributes": {}, "files": []}
-
-        for campo in campos:
+        for campo in campos_selecionados:
             if campo in linha and not pd.isna(linha[campo]):
                 valor = str(linha[campo]).strip()
                 if campo == "CPF":
@@ -38,7 +45,7 @@ def processar_planilha(arquivo, auth_token, template_id, intervalo, campos, inte
                 elif campo == "TEL":
                     payload["attributes"]["phoneNumber"] = valor
                 elif campo == "PLACA":
-                    valor = re.sub(r"\s+", "", valor)
+                    valor = valor.replace(" ", "").upper()
                     payload["attributes"]["plate"] = valor
                 elif campo == "SELFIE":
                     payload["files"].append({"data": valor, "type": "SELFIE"})
@@ -55,21 +62,17 @@ def processar_planilha(arquivo, auth_token, template_id, intervalo, campos, inte
                 json=payload
             )
             status = response.status_code
-            mensagem = response.text
-            cpf_log = payload["attributes"].get("cpf", "N/A")
-            log_texto = f"{i+1}/{total} → Status: {status} | CPF: {cpf_log}"
-            logs.append({"cpf": cpf_log, "status": status, "mensagem": mensagem})
+            resp_text = response.text.replace("\n", "").replace("\r", "")
+            logs.append(f'{payload["attributes"].get("cpf", "")},{status},"{resp_text}"')
+            log_area.text(f"{i+1}/{total} → Status: {status} | CPF: {payload["attributes"].get("cpf", "")}")
         except Exception as e:
-            log_texto = f"{i+1}/{total} → Erro: {str(e)}"
-            logs.append({"cpf": cpf_log, "status": "erro", "mensagem": str(e)})
+            logs.append(f'{payload["attributes"].get("cpf", "")},error,"{str(e)}"')
+            log_area.text(f"{i+1}/{total} → Erro: {str(e)}")
 
-        log_area.text(log_texto)
         progresso.progress((i+1)/total, text=f"{i+1} de {total} enviados")
         time.sleep(intervalo)
 
-    df_log = pd.DataFrame(logs)
-    csv = df_log.to_csv(index=False).encode("utf-8")
-    st.download_button("📄 Baixar relatório de envio", csv, file_name="log_envio.csv", mime="text/csv")
-
-    if not st.session_state.get(interromper_key):
+    output = "cpf,status,mensagem\n" + "\n".join(logs)
+    st.download_button("📥 Baixar relatório", data=output, file_name="relatorio_envio.csv", mime="text/csv")
+    if not st.session_state.get("interromper_envio"):
         st.success("✅ Processamento concluído.")

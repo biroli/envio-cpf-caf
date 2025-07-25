@@ -2,27 +2,16 @@ import streamlit as st
 from layout import render_layout
 from processamento import processar_planilha
 
-st.set_page_config(page_title="Envio de Transações CAF", layout="centered")
+st.set_page_config(page_title="Envio de Transações para a CAF", layout="centered", page_icon="📤")
 
-# Inicialização do estado
-if "interromper" not in st.session_state:
-    st.session_state["interromper"] = False
+render_layout()
 
-if "enviando" not in st.session_state:
-    st.session_state["enviando"] = False
-
-# Renderiza o layout e coleta os dados
-dados = render_layout()
-
-# Se o botão "Iniciar envio" for clicado
-if dados.get("start"):
-    st.session_state["enviando"] = True
-    st.session_state["interromper"] = False
+if "iniciar_envio" in st.session_state and st.session_state["iniciar_envio"]:
     processar_planilha(
         arquivo=st.session_state["arquivo"],
         auth_token=st.session_state["auth_token"],
         template_id=st.session_state["template_id"],
-        intervalo=dados["intervalo"],
-        campos=dados["campos"],
-        interromper_key="interromper"
+        frequencia=st.session_state["frequencia"],
+        unidade_tempo=st.session_state["unidade_tempo"],
+        campos_selecionados=st.session_state["campos_selecionados"]
     )

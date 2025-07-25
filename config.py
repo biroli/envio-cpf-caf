@@ -1,13 +1,16 @@
-CAMPOS_DISPONIVEIS = {
-    "CPF": "cpf",
-    "NOME": "name",
-    "DATA_NASC": "birthDate",
-    "NOME_MAE": "motherName",
-    "CEP": "cep",
-    "EMAIL": "email",
-    "TEL": "phoneNumber",
-    "PLACA": "plate",
-    "SELFIE": "SELFIE",
-    "FRENTE_DOC": "OTHERS",
-    "VERSO_DOC": "OTHERS",
-}
+import streamlit as st
+
+def init_session_state():
+    defaults = {
+        "auth_token": "",
+        "template_id": "",
+        "frequencia": 2,
+        "unidade_tempo": "segundo",
+        "arquivo": None,
+        "campos_selecionados": [],
+        "iniciar_envio": False,
+        "interromper_envio": False
+    }
+    for key, default in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = default

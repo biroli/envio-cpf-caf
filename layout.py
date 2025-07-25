@@ -1,34 +1,40 @@
 import streamlit as st
-from config import CAMPOS_DISPONIVEIS
+import time
 
 def render_layout():
     st.title("📤 Envio de Transações para a CAF")
 
     st.subheader("1️⃣ Selecione os campos que estarão na planilha:")
-    for campo in CAMPOS_DISPONIVEIS:
-        st.session_state[campo] = st.checkbox(campo, value=(campo == "CPF"))
+    campos_disponiveis = ["CPF", "NOME", "DATA_NASC", "NOME_MAE", "CEP", "EMAIL", "TEL", "PLACA", "SELFIE", "FRENTE_DOC", "VERSO_DOC"]
+    campos = st.multiselect("Campos disponíveis:", campos_disponiveis, default=campos_disponiveis)
 
     st.subheader("📄 Exemplo da planilha esperada:")
-    campos_selecionados = [campo for campo in CAMPOS_DISPONIVEIS if st.session_state.get(campo)]
-    st.code("\t".join(campos_selecionados), language="text")
+    st.code("\t".join(campos), language="text")
 
     st.subheader("2️⃣ Informações da Requisição")
-    st.text_input("Authorization (coloque o token completo):", type="password", key="auth_token")
-    st.text_input("ID do Modelo (templateId):", key="template_id")
+    auth_token = st.text_input("Authorization (coloque o token completo):", type="password", key="auth_token")
+    template_id = st.text_input("ID do Modelo (templateId):", key="template_id")
 
     col1, col2 = st.columns(2)
     with col1:
-        st.number_input("Quantidade de requisições", min_value=1, value=2, key="frequencia")
+        frequencia = st.number_input("Quantidade de requisições", min_value=1, value=2)
     with col2:
-        st.selectbox("Por...", options=["segundo", "minuto"], key="unidade_tempo")
+        unidade_tempo = st.selectbox("Por...", options=["segundo", "minuto"])
+
+    intervalo = 1 / frequencia if unidade_tempo == "segundo" else 60 / frequencia
 
     st.subheader("3️⃣ Upload da planilha")
-    st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"], key="arquivo")
+    arquivo = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"], key="arquivo")
 
-    if not st.session_state["enviar"]:
-        if st.button("🚀 Iniciar envio"):
-            st.session_state["enviar"] = True
-            st.experimental_rerun()
-    else:
+    start = st.button("🚀 Iniciar envio")
+
+    # Exibe botão de interrupção se estiver enviando
+    if st.session_state.get("enviando", False):
         if st.button("🛑 Interromper envio"):
             st.session_state["interromper"] = True
+
+    return {
+        "campos": campos,
+        "intervalo": intervalo,
+        "start": start
+    }

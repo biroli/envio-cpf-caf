@@ -44,4 +44,36 @@ def render_layout():
     colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
     st.code("\t".join(colunas_selecionadas), language="text")
 
-    return campos
+    st.subheader("2️⃣ Informações da Requisição")
+
+    auth_token = st.text_input("Authorization (coloque o token completo):", type="password", key="auth_token")
+    template_id = st.text_input("ID do Modelo (templateId):", key="template_id")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        frequencia = st.number_input("Quantidade de requisições", min_value=1, value=2, key="frequencia")
+    with col2:
+        unidade_tempo = st.selectbox("Por...", options=["segundo", "minuto"], key="unidade_tempo")
+
+    st.subheader("3️⃣ Upload da planilha")
+    arquivo = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"], key="arquivo")
+
+    iniciar_envio = st.button("🚀 Iniciar envio")
+
+    if "interromper" not in st.session_state:
+        st.session_state.interromper = False
+
+    if st.session_state.get("envio_em_andamento"):
+        if st.button("🛑 Interromper envio"):
+            st.session_state.interromper = True
+
+    return {
+        "campos": campos,
+        "colunas_selecionadas": colunas_selecionadas,
+        "auth_token": auth_token,
+        "template_id": template_id,
+        "frequencia": frequencia,
+        "unidade_tempo": unidade_tempo,
+        "arquivo": arquivo,
+        "iniciar_envio": iniciar_envio,
+    }

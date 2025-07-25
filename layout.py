@@ -1,40 +1,47 @@
 import streamlit as st
-import time
 
 def render_layout():
+    st.markdown(
+        '''
+        <style>
+            .main {
+                background-color: #0f0f0f;
+                color: white;
+            }
+            h1, h2, h3 {
+                color: #00ffd4;
+            }
+            .stButton>button {
+                background-color: #00ffd4;
+                color: black;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 10px;
+            }
+        </style>
+        ''',
+        unsafe_allow_html=True
+    )
+
     st.title("📤 Envio de Transações para a CAF")
 
     st.subheader("1️⃣ Selecione os campos que estarão na planilha:")
-    campos_disponiveis = ["CPF", "NOME", "DATA_NASC", "NOME_MAE", "CEP", "EMAIL", "TEL", "PLACA", "SELFIE", "FRENTE_DOC", "VERSO_DOC"]
-    campos = st.multiselect("Campos disponíveis:", campos_disponiveis, default=campos_disponiveis)
+    campos = {
+        "CPF": st.checkbox("CPF", value=True),
+        "NOME": st.checkbox("NOME"),
+        "DATA_NASC": st.checkbox("DATA_NASC"),
+        "NOME_MAE": st.checkbox("NOME_MAE"),
+        "CEP": st.checkbox("CEP"),
+        "EMAIL": st.checkbox("EMAIL"),
+        "TEL": st.checkbox("TEL"),
+        "PLACA": st.checkbox("PLACA"),
+        "SELFIE": st.checkbox("SELFIE"),
+        "FRENTE_DOC": st.checkbox("FRENTE_DOC"),
+        "VERSO_DOC": st.checkbox("VERSO_DOC"),
+    }
 
     st.subheader("📄 Exemplo da planilha esperada:")
-    st.code("\t".join(campos), language="text")
+    colunas_selecionadas = [campo for campo, marcado in campos.items() if marcado]
+    st.code("\t".join(colunas_selecionadas), language="text")
 
-    st.subheader("2️⃣ Informações da Requisição")
-    auth_token = st.text_input("Authorization (coloque o token completo):", type="password", key="auth_token")
-    template_id = st.text_input("ID do Modelo (templateId):", key="template_id")
-
-    col1, col2 = st.columns(2)
-    with col1:
-        frequencia = st.number_input("Quantidade de requisições", min_value=1, value=2)
-    with col2:
-        unidade_tempo = st.selectbox("Por...", options=["segundo", "minuto"])
-
-    intervalo = 1 / frequencia if unidade_tempo == "segundo" else 60 / frequencia
-
-    st.subheader("3️⃣ Upload da planilha")
-    arquivo = st.file_uploader("Envie um arquivo Excel (.xlsx)", type=["xlsx"], key="arquivo")
-
-    start = st.button("🚀 Iniciar envio")
-
-    # Exibe botão de interrupção se estiver enviando
-    if st.session_state.get("enviando", False):
-        if st.button("🛑 Interromper envio"):
-            st.session_state["interromper"] = True
-
-    return {
-        "campos": campos,
-        "intervalo": intervalo,
-        "start": start
-    }
+    return campos

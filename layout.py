@@ -19,7 +19,7 @@ def render_layout():
     for campo in CAMPOS_DISPONIVEIS:
         st.session_state[campo] = st.checkbox(campo, value=(campo == "CPF"))
 
-    st.subheader("📄 Exemplo da planilha esperada:")
+    st.subheader("📄 Copie e cole na primeira linha da sua planilha:")
     colunas = [c for c in CAMPOS_DISPONIVEIS if st.session_state.get(c)]
     st.code("\t".join(colunas), language="text")
 
